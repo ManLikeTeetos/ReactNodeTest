@@ -1,6 +1,6 @@
 const express = require('express');
 const meeting = require('./meeting');
-const auth    = require('../../middlewares/auth');
+const auth    = require('../../middelwares/auth');
 
 const router = express.Router();
 
