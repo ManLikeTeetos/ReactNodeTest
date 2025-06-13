@@ -73,18 +73,95 @@ const index = async (req, res) => {
             }
         }
 
-        // Build the query with population
-        const result = await MeetingHistory.find(query)
-            .populate('attendes', 'firstName lastName email phoneNumber')
-            .populate('attendesLead', 'firstName lastName email phoneNumber')
-            .populate('createBy', 'firstName lastName email')
-            .sort({ dateTime: -1 }) // Newest meetings first
-            .exec();
-
-         if(!result){
-            return res.status(404).json({message: "Meeting not found"});
-         }   
-
+          let result = await MeetingHistory.aggregate([
+            { $match: query },
+            // Lookup for Contacts (for attendes)
+            {
+                $lookup: {
+                    from: 'Contacts',
+                    localField: 'attendes',
+                    foreignField: '_id',
+                    as: 'contactAttendees'
+                }
+            },
+            // Lookup for Leads (for attendesLead)
+            {
+                $lookup: {
+                    from: 'Leads',
+                    localField: 'attendesLead',
+                    foreignField: '_id',
+                    as: 'leadAttendees'
+                }
+            },
+            // Lookup for creator (createBy)
+            {
+                $lookup: {
+                    from: 'User',
+                    localField: 'createBy',
+                    foreignField: '_id',
+                    as: 'creator'
+                }
+            },
+            // Unwind the arrays (preserving null/empty arrays)
+            { $unwind: { path: '$creator', preserveNullAndEmptyArrays: true } },
+            // Add fields for formatted names
+            {
+                $addFields: {
+                    // Format contact attendees names
+                    formattedContactAttendees: {
+                        $map: {
+                            input: '$contactAttendees',
+                            as: 'contact',
+                            in: {
+                                $concat: [
+                                    { $ifNull: ['$$contact.title', ''] },
+                                    ' ',
+                                    { $ifNull: ['$$contact.firstName', ''] },
+                                    ' ',
+                                    { $ifNull: ['$$contact.lastName', ''] }
+                                ]
+                            }
+                        }
+                    },
+                    // Format lead attendees names
+                    formattedLeadAttendees: {
+                        $map: {
+                            input: '$leadAttendees',
+                            as: 'lead',
+                            in: '$$lead.leadName'
+                        }
+                    },
+                    // Combine all attendees based on related field
+                    allAttendees: {
+                        $cond: {
+                            if: { $eq: ['$related', 'Contact'] },
+                            then: '$formattedContactAttendees',
+                            else: {
+                                $cond: {
+                                    if: { $eq: ['$related', 'Lead'] },
+                                    then: '$formattedLeadAttendees',
+                                    else: [] // Default case
+                                }
+                            }
+                        }
+                    },
+                    createByName: '$creator.username'
+                }
+            },
+            // Project only the fields we want to return
+            {
+                $project: {
+                    contactAttendees: 0,
+                    leadAttendees: 0,
+                    creator: 0,
+                    formattedContactAttendees: 0,
+                    formattedLeadAttendees: 0
+                }
+            }
+        ]);  
+        if(!result){
+            return res.status(404).json("Meeting not found");
+        }
         res.status(200).json(result);
     } catch (error) {
         console.error("List Meetings Error:", error);
@@ -97,24 +174,105 @@ const index = async (req, res) => {
 
 const view = async (req, res) => {
     try {
-        const meeting = await MeetingHistory.findById(req.params.id)
-            .populate('attendes', 'firstName lastName')
-            .populate('attendesLead', 'firstName lastName')
-            .populate('createBy', 'firstName lastName') 
-            .exec();
+        let response = await MeetingHistory.findOne({ _id: req.params.id });
+        if (!response) return res.status(404).json({ message: "No Data Found." });
 
-        if (!meeting || meeting.deleted) {
-            return res.status(404).json({ message: "Meeting not found" });
-        }
+        let result = await MeetingHistory.aggregate([
+            { $match: { _id: response._id } },
+            // Lookup for Contacts (for attendes)
+            {
+                $lookup: {
+                    from: 'Contacts',
+                    localField: 'attendes',
+                    foreignField: '_id',
+                    as: 'contactAttendees'
+                }
+            },
+            // Lookup for Leads (for attendesLead)
+            {
+                $lookup: {
+                    from: 'Leads',
+                    localField: 'attendesLead',
+                    foreignField: '_id',
+                    as: 'leadAttendees'
+                }
+            },
+            // Lookup for creator (createBy)
+            {
+                $lookup: {
+                    from: 'User',
+                    localField: 'createBy',
+                    foreignField: '_id',
+                    as: 'creator'
+                }
+            },
+            // Unwind the arrays (preserving null/empty arrays)
+            { $unwind: { path: '$creator', preserveNullAndEmptyArrays: true } },
+            // Add fields for formatted names
+            {
+                $addFields: {
+                    // Format contact attendees names
+                    formattedContactAttendees: {
+                        $map: {
+                            input: '$contactAttendees',
+                            as: 'contact',
+                            in: {
+                                $concat: [
+                                    { $ifNull: ['$$contact.title', ''] },
+                                    ' ',
+                                    { $ifNull: ['$$contact.firstName', ''] },
+                                    ' ',
+                                    { $ifNull: ['$$contact.lastName', ''] }
+                                ]
+                            }
+                        }
+                    },
+                    // Format lead attendees names
+                    formattedLeadAttendees: {
+                        $map: {
+                            input: '$leadAttendees',
+                            as: 'lead',
+                            in: '$$lead.leadName'
+                        }
+                    },
+                    // Combine all attendees based on related field
+                    allAttendees: {
+                        $cond: {
+                            if: { $eq: ['$related', 'Contact'] },
+                            then: '$formattedContactAttendees',
+                            else: {
+                                $cond: {
+                                    if: { $eq: ['$related', 'Lead'] },
+                                    then: '$formattedLeadAttendees',
+                                    else: [] // Default case
+                                }
+                            }
+                        }
+                    },
+                    createByName: '$creator.username'
+                }
+            },
+            // Project only the fields we want to return
+            {
+                $project: {
+                    contactAttendees: 0,
+                    leadAttendees: 0,
+                    creator: 0,
+                    formattedContactAttendees: 0,
+                    formattedLeadAttendees: 0
+                }
+            }
+        ]);
 
-        res.status(200).json(meeting);
-    } catch (error) {
-        console.error("View Meeting Error:", error);
-        res.status(500).json({ 
-             error: "Failed to fetch meetings",
-            details: error.message });
+        res.status(200).json(result[0]);
+
+    } catch (err) {
+         res.status(500).json({ 
+            error: "Failed to fetch meetings",
+            details: error.message 
+        });
     }
-}
+};
 
 const deleteData = async (req, res) => {
      try {
