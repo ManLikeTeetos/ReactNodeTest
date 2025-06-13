@@ -39,13 +39,60 @@ const add = async (req, res) => {
         res.status(200).json(result);
     } catch (err) {
         console.error('Failed to create :', err.error);
-        res.status(400).json({ err, error: 'Failed to create' });
+        res.status(500).json({ error: 'Failed to create meetings:',
+            details: error.message
+        });
     }
    
 }
 
 const index = async (req, res) => {
-    
+    try {
+        // Initialize base query with soft delete filter
+        query = req.query;
+        query.deleted = false;
+        
+
+        // Add filter for createBy if provided in query params
+        if (query.createBy) {
+            query.createBy = new mongoose.Types.ObjectId(req.query.createBy);
+        }
+
+        if (query.agenda) {
+            query.agenda = { $regex: query.agenda, $options: 'i' };
+        }
+
+        // Add date range filtering if provided
+        if (query.startDate || query.endDate) {
+            query.dateTime = {};
+            if (query.startDate) {
+                query.dateTime.$gte = new Date(query.startDate);
+            }
+            if (query.endDate) {
+                query.dateTime.$lte = new Date(query.endDate);
+            }
+        }
+
+        // Build the query with population
+        const result = await MeetingHistory.find(query)
+            .populate('attendes', 'firstName lastName email phoneNumber')
+            .populate('attendesLead', 'firstName lastName email phoneNumber')
+            .populate('createBy', 'firstName lastName email')
+            .sort({ dateTime: -1 }) // Newest meetings first
+            .exec();
+
+         if(!result){
+            return res.status(404).json({message: "Meeting not found"});
+         }   
+
+        res.status(200).json(result);
+    } catch (error) {
+        console.error("List Meetings Error:", error);
+        res.status(500).json({ 
+            error: "Failed to fetch meetings",
+            details: error.message 
+        });
+    }
 }
 
 const view = async (req, res) => {
@@ -63,16 +110,51 @@ const view = async (req, res) => {
         res.status(200).json(meeting);
     } catch (error) {
         console.error("View Meeting Error:", error);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ 
+             error: "Failed to fetch meetings",
+            details: error.message });
     }
 }
 
 const deleteData = async (req, res) => {
+     try {
+        const result = await MeetingHistory.findByIdAndUpdate(
+            req.params.id,
+            { deleted: true },
+            { new: true }
+        );
+
+        if (!result) {
+            return res.status(404).json({ message: "Meeting not found" });
+        }
+
+        res.status(200).json({ message: "Meeting deleted successfully" });
+    } catch (error) {
+        console.error("Delete Meeting Error:", error);
+        res.status(500).json({ 
+             error: "Failed to delete meetings",
+            details: error.message });
+    }
   
 }
 
 const deleteMany = async (req, res) => {
-    
+     try {
+        const result = await MeetingHistory.updateMany({ _id: { $in: req.body } }, { $set: { deleted: true } });
+
+        if (result?.matchedCount > 0 && result?.modifiedCount > 0) {
+            return res.status(200).json({ message: "Meeetings Removed successfully", result });
+        }
+        else {
+            return res.status(404).json({ success: false, message: "Failed to remove meetings" })
+        }
+
+    } catch (err) {
+        console.error("Delete Meeting Error:", error);
+        res.status(500).json({ 
+             error: "Failed to delete meetings",
+            details: error.message });
+    }
 }
 
 module.exports = { add, index, view, deleteData, deleteMany }
