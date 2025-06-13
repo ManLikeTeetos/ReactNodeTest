@@ -1,18 +1,22 @@
 const jwt = require('jsonwebtoken');
 
 const auth = (req, res, next) => {
-    const token = req.headers.authorization;
+    const authHeader = req.headers.authorization;
 
-    if (!token) {
-        res.status(401).json({ message: "Authentication failed , Token missing" });
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        return res.status(401).json({ message: "Authentication failed. Token missing or malformed." });
     }
+
+    const token = authHeader.split(" ")[1];
+
     try {
-        const decode = jwt.verify(token, 'secret_key')
-        req.user = decode
+        const decode = jwt.verify(token, process.env.JWT_SECRET); 
+        req.user = { _id: decode.userId }; 
         next();
     } catch (err) {
-        res.status(500).json({ message: 'Authentication failed. Invalid token.' })
+        console.error("JWT Error:", err);
+        res.status(401).json({ message: 'Authentication failed. Invalid token.' });
     }
-}
+};
 
-module.exports = auth
+module.exports = auth;

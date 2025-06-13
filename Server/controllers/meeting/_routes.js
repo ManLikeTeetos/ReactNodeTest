@@ -5,7 +5,7 @@ const auth    = require('../../middelwares/auth');
 const router = express.Router();
 
 router.post('/add', auth, meeting.add);
-router.get('/view/:id', auth, meeting.view)
+router.get('/view/:id', auth, meeting.view);
 
 
 module.exports = router
