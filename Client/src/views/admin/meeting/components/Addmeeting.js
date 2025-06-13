@@ -11,9 +11,10 @@ import { useSelector } from 'react-redux';
 import { toast } from 'react-toastify';
 import { MeetingSchema } from 'schema';
 import { getApi, postApi } from 'services/api';
+import moment from 'moment';
 
 const AddMeeting = (props) => {
-    const { onClose, isOpen, setAction, from, fetchData, view } = props
+    const { onClose, isOpen, fetchData, setAction, from, id, view, data } = props
     const [leaddata, setLeadData] = useState([])
     const [contactdata, setContactData] = useState([])
     const [isLoding, setIsLoding] = useState(false)
@@ -43,22 +44,74 @@ const AddMeeting = (props) => {
         initialValues: initialValues,
         validationSchema: MeetingSchema,
         onSubmit: (values, { resetForm }) => {
-            
+            AddData();
+            resetForm()         
         },
     });
-    const { errors, touched, values, handleBlur, handleChange, handleSubmit, setFieldValue } = formik
+    const { errors, touched, values, handleBlur, handleChange, handleSubmit, setFieldValue, resetForm } = formik
 
     const AddData = async () => {
+        try {
+                setIsLoding(true)
 
+                if (values?.dateTime) {
+                    values.dateTime =  moment(values?.start).format('YYYY-MM-DD HH:mm');
+                }
+               
+
+                let response = await postApi('api/meeting/add', values)
+                if (response.status === 200) {
+                    formik.resetForm()
+                    onClose();
+                    fetchData(1)
+                }
+            } catch (e) {
+                console.log(e);
+            }
+            finally {
+                setIsLoding(false)
+            }
     };
 
-    const fetchAllData = async () => {
-        
+    const fetchMeetingData = async () => {
+         if (id) {
+            try {
+                setIsLoding(true)
+                let result = await getApi('api/meeting/view/', id)
+                setFieldValue('agenda', result?.data?.agenda)
+                setFieldValue('attendes', result?.data?.attendes)
+                setFieldValue('attendesLead', result?.data?.attendesLead)
+                setFieldValue('location', result?.data?.location)
+                setFieldValue('related', result?.data?.related)
+                setFieldValue('dateTime', result?.data?.dateTime)
+                setFieldValue('notes', result?.data?.notes)
+                setFieldValue('createBy', result?.data?.createBy)
+            }
+            catch (e) {
+                console.log(e);
+            }
+            finally {
+                setIsLoding(false)
+            }
+        } else if (data) {
+                setFieldValue('agenda', data?.agenda)
+                setFieldValue('attendes', data?.attendes)
+                setFieldValue('attendesLead', data?.attendesLead)
+                setFieldValue('location', data?.location)
+                setFieldValue('related', data?.related)
+                setFieldValue('dateTime', data?.dateTime)
+                setFieldValue('notes', data?.notes)
+                setFieldValue('createBy', data?.createBy)
+        }
     }
 
     useEffect(() => {
+        if(id || data){
+          fetchMeetingData()
+        } 
 
-    }, [props.id, values.related])
+        fetchMeetingData()
+    }, [id, data])
 
     const extractLabels = (selectedItems) => {
         return selectedItems.map((item) => item._id);

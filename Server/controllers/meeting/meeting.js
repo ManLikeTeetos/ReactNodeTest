@@ -1,6 +1,3 @@
-const User = require('../../model/schema/user');
-const Contact = require('../../model/schema/contact');
-const Lead = require('../../model/schema/lead');
 const MeetingHistory = require('../../model/schema/meeting')
 const mongoose = require('mongoose');
 
@@ -48,21 +45,22 @@ const add = async (req, res) => {
 
 const index = async (req, res) => {
     try {
-        // Initialize base query with soft delete filter
+      
         query = req.query;
         query.deleted = false;
         
 
-        // Add filter for createBy if provided in query params
+       //Creator Filter
         if (query.createBy) {
             query.createBy = new mongoose.Types.ObjectId(req.query.createBy);
         }
 
+        //Agenda filter
         if (query.agenda) {
             query.agenda = { $regex: query.agenda, $options: 'i' };
         }
 
-        // Add date range filtering if provided
+        //Date filter
         if (query.startDate || query.endDate) {
             query.dateTime = {};
             if (query.startDate) {
@@ -145,7 +143,7 @@ const index = async (req, res) => {
                             }
                         }
                     },
-                    createByName: '$creator.username'
+                    createdByName: '$creator.username'
                 }
             },
             // Project only the fields we want to return
@@ -249,7 +247,7 @@ const view = async (req, res) => {
                             }
                         }
                     },
-                    createByName: '$creator.username'
+                    createdByName: '$creator.username'
                 }
             },
             // Project only the fields we want to return

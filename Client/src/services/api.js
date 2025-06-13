@@ -4,9 +4,11 @@ import { constant } from "../constant"
 
 export const postApi = async (path, data, login) => {
     try {
+        const token = localStorage.getItem("token") || sessionStorage.getItem("token"); 
         let result = await axios.post(constant.baseUrl + path, data, {
             headers: {
-                Authorization: localStorage.getItem("token") || sessionStorage.getItem("token")
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
             }
         })
         if (result.data?.token && result.data?.token !== null) {
@@ -25,9 +27,11 @@ export const postApi = async (path, data, login) => {
 }
 export const putApi = async (path, data, id) => {
     try {
+       const token = localStorage.getItem("token") || sessionStorage.getItem("token"); 
         let result = await axios.put(constant.baseUrl + path, data, {
             headers: {
-                Authorization: localStorage.getItem("token") || sessionStorage.getItem("token")
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
             }
         })
         return result
@@ -39,9 +43,11 @@ export const putApi = async (path, data, id) => {
 
 export const deleteApi = async (path, param) => {
     try {
+        const token = localStorage.getItem("token") || sessionStorage.getItem("token"); 
         let result = await axios.delete(constant.baseUrl + path + param, {
             headers: {
-                Authorization: localStorage.getItem("token") || sessionStorage.getItem("token")
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
             }
         })
         if (result.data?.token && result.data?.token !== null) {
@@ -56,10 +62,12 @@ export const deleteApi = async (path, param) => {
 
 export const deleteManyApi = async (path, data) => {
     try {
+        const token = localStorage.getItem("token") || sessionStorage.getItem("token"); 
         let result = await axios.post(constant.baseUrl + path, data, {
-            headers: {
-                Authorization: localStorage.getItem("token") || sessionStorage.getItem("token")
-            }
+           headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
         })
         if (result.data?.token && result.data?.token !== null) {
             localStorage.setItem('token', result.data?.token)
@@ -73,10 +81,12 @@ export const deleteManyApi = async (path, data) => {
 
 export const getApi = async (path, id) => {
     try {
+        const token = localStorage.getItem("token") || sessionStorage.getItem("token"); 
         if (id) {
             let result = await axios.get(constant.baseUrl + path + id, {
                 headers: {
-                    Authorization: localStorage.getItem("token") || sessionStorage.getItem("token")
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
                 }
             })
             return result
@@ -84,7 +94,8 @@ export const getApi = async (path, id) => {
         else {
             let result = await axios.get(constant.baseUrl + path, {
                 headers: {
-                    Authorization: localStorage.getItem("token") || sessionStorage.getItem("token")
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
                 }
             })
             return result
