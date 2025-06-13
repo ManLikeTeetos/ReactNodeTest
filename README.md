@@ -15,3 +15,7 @@
 - Implement Restful API of "Meeting" in the both of server and client sides (40min)<br/>
   Focus Code Style and Code Optimization. <br/>
   Reference other functions.
+
+## Approach
+
+- Since login function was not to be touched, instead of using process.env.JWT_SECRET, i used the 'secret_key' as specified but note that this is not best practice.
